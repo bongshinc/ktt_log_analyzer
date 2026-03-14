@@ -3,6 +3,10 @@
 KT텔레캅 출입통제 시스템의 인증 로그를 분석하는 **오프라인 HTML 단일 파일** 도구입니다.
 서버 설치 없이 브라우저에서 XLS 파일을 업로드하는 것만으로 즉시 동작합니다.
 
+아래의 JS 파일을 이용합니다. 오프라인 사용을 위해 다운로드하여 HTML 파일과 같은 디렉터리에 두거나 없는 경우 인터넷에 연결하여 사용합니다.
+| [SheetJS CE (xlsx)](https://sheetjs.com/) | 0.20.3 | Apache 2.0 | [다운로드](https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js) |
+| [Chart.js](https://www.chartjs.org/) | 4.4.0 | MIT | [다운로드](https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js) |
+
 ---
 
 ## 주요 기능
