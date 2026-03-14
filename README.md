@@ -149,6 +149,12 @@ Chrome, Edge, Safari, Firefox 최신 버전에서 동작합니다.
 
 이 프로젝트는 **MIT 라이선스**로 배포됩니다. 자유롭게 사용·수정·재배포할 수 있으며,
 저작권 고지와 라이선스 문구만 유지하면 상업적 이용도 허용됩니다.
+
+```
+MIT License
+Copyright (c) 2026 Bongshin Choi <waymaker@bongshin.kr>
+```
+
 자세한 내용은 [LICENSE](./LICENSE) 파일을 참조하세요.
 
 ### 사용된 오픈소스 라이브러리
