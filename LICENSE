@@ -19,3 +19,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+This project uses the following third-party libraries (not included in this repository):
+
+- SheetJS Community Edition (xlsx) v0.20.3 — Apache License 2.0
+  https://sheetjs.com/
+
+- Chart.js v4.4.0 — MIT License
+  Copyright (c) 2014-2022 Chart.js Contributors
+  https://www.chartjs.org/
