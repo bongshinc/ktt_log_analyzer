@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>출입 인증 관리 시스템</title>
+<!-- 로컬 파일 우선 로드, 실패 시 CDN 자동 폴백 (동기 방식) -->
+<script src="./xlsx.full.min.js"
+        onerror="this.onerror=null;this.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js'"></script>
+<script src="./chart.umd.min.js"
+        onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'"></script>
+<style>
+:root{
+  --bg:#f0f5fb;
+  --card:#fff;
+  --blue:#2d7dd2;   --blue-d:#1a5faa;  --blue-l:#dbeafe;
+  --green:#16a34a;  --green-l:#dcfce7;
+  --red:#dc2626;    --red-l:#fee2e2;
+  --orange:#ea580c; --orange-l:#ffedd5;
+  --purple:#7c3aed; --purple-l:#ede9fe;
+  --text:#1e293b;   --muted:#64748b;   --border:#e2e8f0;
+  --shadow:0 2px 12px rgba(0,0,0,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh}
+
+/* ─── Header ─── */
+.hdr{background:#fff;border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;height:52px;position:sticky;top:0;z-index:100;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.hdr-logo{font-size:16px;font-weight:900;color:var(--text)}
+.hdr-logo em{color:var(--blue);font-style:normal}
+.hdr-sub{font-size:9px;color:var(--muted);margin-top:1px}
+.hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.hdr-sdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ccc;margin-right:4px;vertical-align:middle}
+.hdr-sdot.on{background:#22c55e}
+.hdr-stxt{font-size:11px;color:var(--muted)}
+
+/* ─── Page wrapper ─── */
+.page{max-width:1340px;margin:0 auto;padding:22px 22px 40px}
+
+/* ─── Upload row ─── */
+.upload-row{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.uc{background:#fff;border-radius:12px;border:2px dashed var(--border);padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.2s;box-shadow:var(--shadow)}
+.uc:hover{border-color:var(--blue);background:#f4f8ff}
+.uc.drag-over{border-color:var(--blue-d);background:#e8f0ff}
+.uc.loaded{border-color:var(--green);border-style:solid;background:#f0fdf4}
+.uc-icon{font-size:26px;flex-shrink:0}
+.uc-title{font-size:12px;font-weight:700;color:var(--text)}
+.uc-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.uc-ok{font-size:11px;color:var(--green);font-weight:700;margin-top:3px}
+.chips-wrap{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:4px 0}
+.chip{background:var(--blue-l);color:var(--blue);font-size:10px;padding:3px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:4px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.chip .cnt{font-size:13px;font-weight:800}
+.chip .xb{cursor:pointer;opacity:.6;font-size:14px;line-height:1;margin-left:2px}
+.chip .xb:hover{opacity:1}
+input[type=file]{display:none}
+
+/* ─── Stat banner ─── */
+.stat-banner{background:#fff;border-radius:16px;padding:22px 28px;margin-bottom:18px;box-shadow:var(--shadow);text-align:center;display:none}
+.ver-pill{display:inline-flex;align-items:center;gap:5px;background:var(--blue-l);color:var(--blue);font-size:10px;font-weight:800;padding:3px 12px;border-radius:20px;margin-bottom:12px;letter-spacing:.8px}
+.ver-pill::before{content:'●';font-size:7px}
+.banner-h{font-size:24px;font-weight:900;color:var(--text)}
+.banner-h em{color:var(--blue);font-style:normal}
+.banner-sub{font-size:12px;color:var(--muted);margin-top:6px}
+.banner-chips{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.b-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid}
+.b-chip.green{color:var(--green);border-color:var(--green);background:var(--green-l)}
+.b-chip.blue{color:var(--blue);border-color:var(--blue);background:var(--blue-l)}
+
+/* ─── Stat cards ─── */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;display:none}
+.kard{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);transition:.15s;border:1.5px solid var(--border)}
+.kard:hover{transform:translateY(-2px);box-shadow:0 5px 18px rgba(0,0,0,.1)}
+.kard .klbl{font-size:11px;color:var(--muted);margin-bottom:5px}
+.kard .kval{font-size:34px;font-weight:900;line-height:1}
+.kard.k-blue{border-color:#bfdbfe}  .kard.k-blue  .kval{color:var(--blue)}
+.kard.k-green{border-color:#bbf7d0} .kard.k-green .kval{color:var(--green)}
+.kard.k-red{border-color:#fecaca}   .kard.k-red   .kval{color:var(--red)}
+.kard.k-orange{border-color:#fed7aa}.kard.k-orange.kval{color:var(--orange)}
+.kard.k-purple{border-color:#ddd6fe}.kard.k-purple .kval{color:var(--purple)}
+
+/* ─── Tab nav ─── */
+.tab-nav{display:flex;gap:4px;background:#fff;padding:5px;border-radius:12px;box-shadow:var(--shadow);margin-bottom:18px;display:none}
+.tn{flex:1;padding:9px 6px;text-align:center;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--muted);transition:.15s}
+.tn:hover{background:var(--blue-l);color:var(--blue)}
+.tn.active{background:var(--blue);color:#fff}
+
+/* ─── Two-col layout for monthly ─── */
+.split{display:grid;grid-template-columns:300px 1fr;gap:14px}
+.chart-panel{background:#fff;border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+.chart-panel h3{font-size:12px;font-weight:700;margin-bottom:12px;color:var(--text)}
+.table-panel{background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+
+/* ─── Sub tabs (inside table panel) ─── */
+.sub-tabs{display:flex;border-bottom:1.5px solid var(--border);padding:0 14px}
+.stab{padding:10px 14px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:.15s}
+.stab:hover{color:var(--blue)}
+.stab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* ─── Filter row ─── */
+.frow{display:flex;gap:7px;padding:9px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center}
+.frow label{font-size:11px;color:var(--muted)}
+.frow select,.frow input{padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--text);font-family:inherit;background:#fff}
+.frow select:focus,.frow input:focus{outline:none;border-color:var(--blue)}
+
+/* ─── Full-width panel ─── */
+.full-panel{background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.ph h2{font-size:13px;font-weight:800;color:var(--text)}
+
+/* ─── Table ─── */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#f8faff;color:var(--muted);padding:8px 9px;text-align:center;font-weight:700;font-size:11px;border-bottom:1.5px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none}
+th:hover{background:#eef4ff;color:var(--blue)}
+td{padding:6px 9px;border-bottom:1px solid #f1f5f9;text-align:center}
+tr:hover td{background:#f5f9ff}
+tr:nth-child(even) td{background:#fafcff}
+tr:nth-child(even):hover td{background:#eef4ff}
+.badge-fp{background:var(--blue);color:#fff;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.badge-rf{background:var(--green);color:#fff;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.no-data{padding:36px;color:var(--muted);text-align:center}
+
+/* ─── Pagination ─── */
+.pgbar{display:flex;gap:3px;justify-content:center;padding:10px;align-items:center}
+.pgb{width:27px;height:27px;border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;background:#fff;user-select:none}
+.pgb.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.pgb:hover:not(.active){background:#f0f5ff}
+.pg-info{font-size:10px;color:var(--muted);margin-left:6px}
+
+/* ─── Chart grid (reader section) ─── */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.cbox{background:#fff;border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+.cbox h3{font-size:12px;font-weight:700;margin-bottom:10px;color:var(--text)}
+
+/* ─── Inactive / Unreg section ─── */
+.ina-info{background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:12px;box-shadow:var(--shadow);border-left:4px solid var(--red)}
+.ina-row td{background:#fff7f7!important}
+.ina-row:hover td{background:#ffe5e5!important}
+.del-badge{background:var(--red);color:#fff;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.unreg-row td{background:#fff8f0!important}
+.unreg-row:hover td{background:#ffedd5!important}
+.unauth{color:var(--red);font-size:10px;font-weight:800;letter-spacing:.5px}
+.warn-badge{color:var(--orange);font-size:10px;font-weight:800;letter-spacing:.5px}
+.btn-warning{background:var(--orange);color:#fff}.btn-warning:hover{background:#c2410c}
+
+/* ─── Buttons ─── */
+.btn{padding:5px 13px;border-radius:7px;border:none;cursor:pointer;font-size:11px;font-family:inherit;font-weight:700;transition:.15s}
+.btn-pri{background:var(--blue);color:#fff}.btn-pri:hover{background:var(--blue-d)}
+.btn-suc{background:var(--green);color:#fff}.btn-suc:hover{background:#15803d}
+.btn-reset{background:#f1f5f9;color:#64748b;border:1.5px solid #e2e8f0}.btn-reset:hover{background:#fee2e2;color:var(--red);border-color:#fecaca}
+
+/* ─── Empty state ─── */
+.empty-card{background:#fff;border-radius:16px;padding:70px 30px;text-align:center;box-shadow:var(--shadow);margin-top:8px}
+.empty-card .ei{font-size:60px;margin-bottom:18px}
+.empty-card h2{font-size:18px;font-weight:900;color:var(--text);margin-bottom:8px}
+.empty-card p{font-size:12px;color:var(--muted)}
+
+/* ─── Loading overlay ─── */
+.lov{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;z-index:9999}
+.lbox{background:#fff;padding:24px 36px;border-radius:14px;text-align:center}
+.spin{width:32px;height:32px;border:3px solid #eee;border-top-color:var(--blue);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ════ HEADER ════ -->
+<div class="hdr">
+  <div>
+    <div class="hdr-logo">🔐 출입인증 <em>관리 시스템</em></div>
+    <div class="hdr-sub">Access Control Analytics · 오프라인 전용</div>
+  </div>
+  <div class="hdr-right">
+    <span class="hdr-sdot" id="sdot"></span>
+    <span class="hdr-stxt" id="stext">파일을 업로드하세요</span>
+    <button class="btn btn-suc" onclick="exportCurrent()" style="margin-left:10px">📥 내보내기</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ════ UPLOAD ROW ════ -->
+  <div class="upload-row">
+    <div class="uc" id="userCard"
+         onclick="document.getElementById('userInp').click()"
+         ondragover="onDragOver(event,'userCard')" ondrop="onDrop(event,'user')"
+         ondragleave="onDragLeave('userCard')" style="flex:0 0 260px">
+      <div class="uc-icon" id="uIcon">📋</div>
+      <div>
+        <div class="uc-title">사용자 DB</div>
+        <div class="uc-sub" id="uSub">user_lists.xls 업로드</div>
+        <div class="uc-ok" id="uOk" style="display:none"></div>
+      </div>
+    </div>
+    <input type="file" id="userInp" accept=".xls,.xlsx" onchange="loadUserFile(event)">
+
+    <div class="uc" id="logCard"
+         onclick="document.getElementById('logInp').click()"
+         ondragover="onDragOver(event,'logCard')" ondrop="onDrop(event,'log')"
+         ondragleave="onDragLeave('logCard')" style="flex:0 0 240px">
+      <div class="uc-icon">📂</div>
+      <div>
+        <div class="uc-title">처리결과 파일</div>
+        <div class="uc-sub">처리결과_기본.xls <span style="color:#aaa">(복수 가능)</span></div>
+      </div>
+    </div>
+    <input type="file" id="logInp" accept=".xls,.xlsx" multiple onchange="loadLogFiles(event)">
+
+    <div class="chips-wrap" id="fileChips"></div>
+    <button class="btn btn-reset" id="resetBtn" onclick="resetAll()" style="display:none;align-self:center;flex-shrink:0">🗑️ 초기화</button>
+  </div>
+
+  <!-- ════ STAT BANNER ════ -->
+  <div class="stat-banner" id="statBanner">
+    <div class="ver-pill">VERSION 1.0 FINAL RELEASE</div>
+    <div class="banner-h">출입관리 <em>분석 솔루션</em> v1.0</div>
+    <div class="banner-sub">데이터의 조화가 만드는 비즈니스의 평온함.<br>정밀한 매칭과 직관적인 시각화로 보안 관리를 완성합니다.</div>
+    <div class="banner-chips" id="bannerChips"></div>
+  </div>
+
+  <!-- ════ STAT CARDS ════ -->
+  <div class="cards" id="mainCards"></div>
+
+  <!-- ════ TAB NAV ════ -->
+  <div class="tab-nav" id="tabNav">
+    <div class="tn active" id="tn-monthly" onclick="showSec('monthly',this)">📅 월별 현황</div>
+    <div class="tn" id="tn-fp"      onclick="showSec('fp',this)">👆 지문(FP) 분석</div>
+    <div class="tn" id="tn-card"    onclick="showSec('card',this)">💳 카드(RF) 분석</div>
+    <div class="tn" id="tn-reader"  onclick="showSec('reader',this)">📍 리더기 통계</div>
+    <div class="tn" id="tn-inactive" onclick="showSec('inactive',this)">
+      ⚠️ 관리 대상 사용자
+      <span id="inactiveBadge" style="display:none;background:#ef4444;color:#fff;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:3px">0</span>
+    </div>
+    <div class="tn" id="tn-unreg" onclick="showSec('unreg',this)">
+      🚫 미등록 사용자
+      <span id="unregBadge" style="display:none;background:#f97316;color:#fff;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:3px">0</span>
+    </div>
+  </div>
+
+  <!-- ════ EMPTY STATE ════ -->
+  <div class="empty-card" id="emptyState">
+    <div class="ei">🔐</div>
+    <h2>출입 인증 관리 시스템</h2>
+    <p>위에서 파일을 업로드하여 분석을 시작하세요</p>
+    <p style="margin-top:5px;font-size:11px;color:#ccc">user_lists.xls + 처리결과_기본.xls</p>
+  </div>
+
+  <!-- ════ SEC: 월별 현황 ════ -->
+  <div id="sec-monthly" style="display:none">
+    <div class="split">
+      <div class="chart-panel">
+        <h3>📍 리더기별 사용 현황</h3>
+        <canvas id="sideChart"></canvas>
+      </div>
+      <div class="table-panel">
+        <div class="sub-tabs">
+          <div class="stab active" onclick="switchTab('all',this)">전체</div>
+          <div class="stab" onclick="switchTab('fp',this)">👆 FP</div>
+          <div class="stab" onclick="switchTab('rf',this)">💳 RF</div>
+        </div>
+        <div class="frow">
+          <label>년도</label>
+          <select id="mYear" onchange="renderMonthly()"><option value="">전체</option></select>
+          <label>월</label>
+          <select id="mMonth" onchange="renderMonthly()">
+            <option value="">전체</option>
+            <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+            <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+            <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+            <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+          </select>
+          <label>사번/이름</label>
+          <input type="text" id="mSearch" placeholder="검색..." oninput="renderMonthly()" style="width:100px">
+          <button class="btn btn-pri" style="margin-left:auto" onclick="exportTbl('mTbl','월별현황')">📥 저장</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="mTbl">
+            <thead><tr>
+              <th onclick="sortBy('m','year')">년 ↕</th>
+              <th onclick="sortBy('m','month')">월 ↕</th>
+              <th onclick="sortBy('m','empId')">사번 ↕</th>
+              <th>이름</th>
+              <th onclick="sortBy('m','해제')">해제 ↕</th>
+              <th onclick="sortBy('m','경계')">경계 ↕</th>
+              <th onclick="sortBy('m','출입')">출입 ↕</th>
+              <th onclick="sortBy('m','total')">합계 ↕</th>
+              <th>방법</th>
+              <th>비고</th>
+            </tr></thead>
+            <tbody id="mBody"></tbody>
+          </table>
+        </div>
+        <div class="pgbar" id="mPg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SEC: FP 분석 ════ -->
+  <div id="sec-fp" style="display:none">
+    <div class="full-panel">
+      <div class="ph">
+        <h2>👆 지문(FP) 인증 월별 현황</h2>
+        <button class="btn btn-pri" onclick="exportTbl('fpTbl','FP분석')">📥 엑셀 저장</button>
+      </div>
+      <div class="frow">
+        <label>년도</label><select id="fpYear" onchange="renderFP()"><option value="">전체</option></select>
+        <label>월</label>
+        <select id="fpMonth" onchange="renderFP()">
+          <option value="">전체</option>
+          <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+          <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+          <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+          <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+        </select>
+        <label>사번/이름</label>
+        <input type="text" id="fpSearch" placeholder="검색..." oninput="renderFP()" style="width:100px">
+      </div>
+      <div style="overflow-x:auto">
+        <table id="fpTbl">
+          <thead><tr>
+            <th onclick="sortBy('fp','year')">년 ↕</th>
+            <th onclick="sortBy('fp','month')">월 ↕</th>
+            <th onclick="sortBy('fp','empId')">사번 ↕</th>
+            <th>이름</th>
+            <th onclick="sortBy('fp','해제')">해제 ↕</th>
+            <th onclick="sortBy('fp','경계')">경계 ↕</th>
+            <th onclick="sortBy('fp','출입')">출입 ↕</th>
+            <th onclick="sortBy('fp','total')">합계 ↕</th>
+            <th>비고</th>
+          </tr></thead>
+          <tbody id="fpBody"></tbody>
+        </table>
+      </div>
+      <div class="pgbar" id="fpPg"></div>
+    </div>
+  </div>
+
+  <!-- ════ SEC: 카드 분석 ════ -->
+  <div id="sec-card" style="display:none">
+    <div class="full-panel">
+      <div class="ph">
+        <h2>💳 카드(RF) 인증 월별 현황</h2>
+        <button class="btn btn-pri" onclick="exportTbl('cardTbl','RF분석')">📥 엑셀 저장</button>
+      </div>
+      <div class="frow">
+        <label>년도</label><select id="cardYear" onchange="renderCard()"><option value="">전체</option></select>
+        <label>월</label>
+        <select id="cardMonth" onchange="renderCard()">
+          <option value="">전체</option>
+          <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+          <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+          <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+          <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+        </select>
+        <label>사번/이름</label>
+        <input type="text" id="cardSearch" placeholder="검색..." oninput="renderCard()" style="width:100px">
+      </div>
+      <div style="overflow-x:auto">
+        <table id="cardTbl">
+          <thead><tr>
+            <th onclick="sortBy('card','year')">년 ↕</th>
+            <th onclick="sortBy('card','month')">월 ↕</th>
+            <th onclick="sortBy('card','empId')">사번 ↕</th>
+            <th>이름</th>
+            <th onclick="sortBy('card','해제')">해제 ↕</th>
+            <th onclick="sortBy('card','경계')">경계 ↕</th>
+            <th onclick="sortBy('card','출입')">출입 ↕</th>
+            <th onclick="sortBy('card','total')">합계 ↕</th>
+            <th>비고</th>
+          </tr></thead>
+          <tbody id="cardBody"></tbody>
+        </table>
+      </div>
+      <div class="pgbar" id="cardPg"></div>
+    </div>
+  </div>
+
+  <!-- ════ SEC: 리더기 통계 ════ -->
+  <div id="sec-reader" style="display:none">
+    <div class="chart-grid" id="readerCharts"></div>
+    <div class="full-panel">
+      <div class="ph">
+        <h2>📍 리더기별 사용자 인증 현황</h2>
+        <button class="btn btn-pri" onclick="exportTbl('rdTbl','리더기통계')">📥 엑셀 저장</button>
+      </div>
+      <div class="frow">
+        <label>리더기</label>
+        <select id="rdFilter" onchange="renderRdTbl()"><option value="">전체</option></select>
+        <label>방법</label>
+        <select id="rdMethod" onchange="renderRdTbl()">
+          <option value="">전체</option><option value="FP">지문(FP)</option><option value="RF">카드(RF)</option>
+        </select>
+        <label>사번/이름</label>
+        <input type="text" id="rdSearch" placeholder="검색..." oninput="renderRdTbl()" style="width:100px">
+      </div>
+      <div style="overflow-x:auto">
+        <table id="rdTbl">
+          <thead><tr>
+            <th>리더기 장소</th><th>사번</th><th>이름</th>
+            <th>해제</th><th>경계</th><th>출입</th><th>합계</th><th>방법</th>
+          </tr></thead>
+          <tbody id="rdBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SEC: 관리 대상 사용자 ════ -->
+  <div id="sec-inactive" style="display:none">
+    <div class="ina-info">
+      <p style="color:var(--red);font-weight:800;font-size:13px">⚠️ 최근 분기(90일) 동안 출입 기록이 없는 사용자</p>
+      <p style="font-size:11px;color:var(--muted);margin-top:6px">
+        기준일: <strong id="inaBase">-</strong> &nbsp;|&nbsp;
+        기준 분기: <strong id="inaQ">-</strong> &nbsp;|&nbsp;
+        관리 대상: <strong id="inaCount" style="color:var(--red)">0명</strong>
+      </p>
+    </div>
+    <div class="full-panel">
+      <div class="ph">
+        <h2>관리 대상 목록</h2>
+        <button class="btn btn-pri" onclick="exportTbl('inaTbl','관리대상')">📥 엑셀 저장</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table id="inaTbl">
+          <thead><tr>
+            <th>사번</th><th>이름</th><th>마지막 인증일</th>
+            <th>미출입 기간(일)</th><th>총 인증 횟수</th><th>상태</th><th>비고</th>
+          </tr></thead>
+          <tbody id="inaBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SEC: 미등록 사용자 기록 ════ -->
+  <div id="sec-unreg" style="display:none">
+    <div class="ina-info" style="border-left-color:var(--orange)">
+      <p style="color:var(--orange);font-weight:800;font-size:13px">🚫 사용자 명부에 없는 인증번호의 출입 기록</p>
+      <p style="font-size:11px;color:var(--muted);margin-top:6px">
+        미등록 인증번호: <strong id="unregCount" style="color:var(--orange)">0개</strong> &nbsp;|&nbsp;
+        누적 기록: <strong id="unregTotal" style="color:var(--orange)">0건</strong> &nbsp;|&nbsp;
+        <span style="color:var(--red)">보안 검토가 필요한 항목입니다</span>
+      </p>
+    </div>
+    <div class="full-panel">
+      <div class="ph">
+        <h2>미등록 사용자 기록 <span style="font-size:11px;color:var(--muted);font-weight:400">(보안 검토)</span></h2>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-suc" onclick="exportTbl('unregTbl','미등록사용자')">EXPORT EXCEL</button>
+          <button class="btn btn-warning" onclick="exportUnregLogs()">출입기록 다운로드</button>
+        </div>
+      </div>
+      <!-- 위험도 기준 설명 -->
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:#fafafa;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">위험도 기준</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:5px 8px;font-size:11px">
+          <span class="unauth" style="align-self:baseline;white-space:nowrap">UNAUTHORIZED</span>
+          <span style="color:var(--muted);align-self:baseline">— <b>주장치(보안 제어반)</b>에서 해제·경계 인증이 감지된 미등록 번호. 보안 시스템을 직접 조작한 것으로 즉각 보안 검토 필수.</span>
+          <span class="warn-badge" style="align-self:baseline;white-space:nowrap">WARNING</span>
+          <span style="color:var(--muted);align-self:baseline">— <b>일반 도어 리더기(출입)</b>만 감지된 미등록 번호. 타인의 해제 후 동반 진입하거나 비경계 상태에서 통과한 것으로 추정. 내부 확인 권장.</span>
+        </div>
+      </div>
+      <div class="frow">
+        <label>인증모드</label>
+        <select id="unregModeFilter" onchange="renderUnreg()">
+          <option value="">전체</option>
+          <option value="해제">해제</option>
+          <option value="경계">경계</option>
+          <option value="출입">출입</option>
+        </select>
+        <label>정렬</label>
+        <select id="unregSort" onchange="renderUnreg()">
+          <option value="count">누적 기록 많은 순</option>
+          <option value="last">최근 인증 순</option>
+          <option value="id">ID 순</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto">
+        <table id="unregTbl">
+          <thead><tr>
+            <th onclick="unregSortBy('id')">미등록 ID ↕</th>
+            <th onclick="unregSortBy('count')">누적 기록 ↕</th>
+            <th onclick="unregSortBy('last')">마지막 인증일 ↕</th>
+            <th>마지막 모드</th>
+            <th>주요 리더기</th>
+            <th>방법</th>
+            <th>위험도</th>
+          </tr></thead>
+          <tbody id="unregBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- Loading -->
+<div class="lov" id="lovEl" style="display:none">
+  <div class="lbox">
+    <div class="spin"></div>
+    <div id="lovTxt">처리 중...</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// 전역 상태
+// ═══════════════════════════════════════
+let users={}, logs=[], logMeta=[], curSec='monthly', curTab='all', charts={};
+const PAGE=50;
+let pg={m:1,fp:1,card:1};
+let srt={m:{col:'year',dir:1},fp:{col:'year',dir:1},card:{col:'year',dir:1}};
+
+// ═══════════════════════════════════════
+// 유틸
+// ═══════════════════════════════════════
+const $=id=>document.getElementById(id);
+function showLoad(t){$('lovTxt').textContent=t;$('lovEl').style.display='flex'}
+function hideLoad(){$('lovEl').style.display='none'}
+function getName(id,fb){
+  if(users[id]&&users[id].이름&&users[id].이름!=='[미등록]') return users[id].이름;
+  if(fb&&fb!=='[등록안됨]'&&fb!=='') return fb;
+  return '[미등록]';
+}
+function fmtD(y,m,d){return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}
+function parseDate(v){
+  if(!v) return null;
+  if(v instanceof Date) return {y:v.getFullYear(),m:v.getMonth()+1,d:v.getDate(),dt:v};
+  if(typeof v==='number'){const p=XLSX.SSF.parse_date_code(v);if(p){const dt=new Date(p.y,p.m-1,p.d);return{y:p.y,m:p.m,d:p.d,dt};}}
+  const s=String(v);
+  const rx=s.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  if(rx){const dt=new Date(+rx[1],+rx[2]-1,+rx[3]);return{y:+rx[1],m:+rx[2],d:+rx[3],dt};}
+  const d=new Date(s);if(!isNaN(d))return{y:d.getFullYear(),m:d.getMonth()+1,d:d.getDate(),dt:d};
+  return null;
+}
+
+// ═══════════════════════════════════════
+// 드래그 앤 드롭
+// ═══════════════════════════════════════
+function onDragOver(e,id){e.preventDefault();$(id).classList.add('drag-over')}
+function onDragLeave(id){$(id).classList.remove('drag-over')}
+function onDrop(e,type){
+  e.preventDefault();onDragLeave(type==='user'?'userCard':'logCard');
+  Array.from(e.dataTransfer.files).forEach(f=>type==='user'?doLoadUser(f):doLoadLog(f));
+}
+function loadUserFile(e){if(e.target.files[0])doLoadUser(e.target.files[0])}
+function loadLogFiles(e){Array.from(e.target.files).forEach(doLoadLog)}
+
+// ═══════════════════════════════════════
+// 사용자 DB 로드
+// ═══════════════════════════════════════
+function doLoadUser(file){
+  showLoad('사용자 DB 로드 중…');
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      let hRow=1;
+      for(let i=0;i<Math.min(rows.length,5);i++){
+        if(rows[i].some(c=>String(c).includes('사원번호')||String(c).includes('인증번호'))){hRow=i;break;}
+      }
+      const h=rows[hRow].map(c=>String(c).trim());
+      const ci=n=>h.findIndex(x=>x.includes(n));
+      const ec=ci('사원번호'),ac=ci('인증번호'),nc=ci('이름'),pc=ci('전화'),sc=ci('근무'),rc=ci('직위')>=0?ci('직위'):ci('직원');
+      users={};
+      for(let i=hRow+1;i<rows.length;i++){
+        const r=rows[i];const eid=String(r[ec>=0?ec:ac]||'').trim();if(!eid)continue;
+        users[eid]={이름:String(r[nc]||'').trim()||'[미등록]',전화:String(r[pc>=0?pc:'']||'').trim(),근무여부:String(r[sc>=0?sc:'']||'').trim(),직위:String(r[rc>=0?rc:'']||'').trim()};
+      }
+      const cnt=Object.keys(users).length;
+      $('userCard').classList.add('loaded');$('uIcon').textContent='✅';
+      $('uSub').style.display='none';$('uOk').style.display='';
+      $('uOk').textContent=`${file.name} (${cnt}명)`;
+      $('resetBtn').style.display='';
+      refresh();
+    }catch(err){alert('사용자 파일 오류: '+err.message);}
+    hideLoad();
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+// ═══════════════════════════════════════
+// 처리결과 로드
+// ═══════════════════════════════════════
+function doLoadLog(file){
+  if(logMeta.find(f=>f.name===file.name)){alert('이미 로드된 파일: '+file.name);return;}
+  showLoad(file.name+' 로드 중…');
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      let hRow=-1;
+      for(let i=0;i<Math.min(rows.length,5);i++){if(rows[i].some(c=>String(c).includes('인증일시'))){hRow=i;break;}}
+      if(hRow<0){hideLoad();alert(file.name+' : 헤더를 찾을 수 없습니다.');return;}
+      const h=rows[hRow].map(c=>String(c).trim());
+      const ci=n=>h.findIndex(x=>x.includes(n));
+      const dc=ci('인증일시'),anc=ci('인증번호'),ec=ci('사원번호'),nc=ci('이름'),rc=ci('리더기'),mc=ci('인증모드'),stc=ci('인증상태'),methc=ci('인증방법');
+      const nl=[];
+      for(let i=hRow+1;i<rows.length;i++){
+        const r=rows[i];if(!r[dc])continue;
+        const pd=parseDate(r[dc]);if(!pd)continue;
+        const eid=String(r[ec]||r[anc]||'').trim();
+        nl.push({year:pd.y,month:pd.m,day:pd.d,dateStr:fmtD(pd.y,pd.m,pd.d),dt:pd.dt,
+          empId:eid,authNo:String(r[anc]||'').trim(),name:String(r[nc]||'').trim(),
+          reader:String(r[rc]||'').trim(),mode:String(r[mc]||'').trim(),
+          status:String(r[stc]||'').trim(),method:String(r[methc]||'').trim()});
+      }
+      logMeta.push({name:file.name,count:nl.length});
+      logs=logs.concat(nl);
+      updateChips();refresh();
+    }catch(err){alert('처리결과 파일 오류: '+err.message);}
+    hideLoad();
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+function updateChips(){
+  $('fileChips').innerHTML=logMeta.map((f,i)=>`
+    <div class="chip">
+      <span>📄 ${f.name}</span>
+      <span class="cnt">${f.count.toLocaleString()}건</span>
+      <span class="xb" title="제거" onclick="removeFile(${i})">×</span>
+    </div>`).join('');
+  $('resetBtn').style.display=logMeta.length?'':'none';
+}
+function removeFile(i){
+  alert(`"${logMeta[i].name}" 제거 시 페이지를 새로고침 후 재업로드해 주세요.`);
+}
+function resetAll(){
+  if(!confirm('모든 로드된 데이터를 초기화합니까?')) return;
+  users={}; logs=[]; logMeta=[]; pg={m:1,fp:1,card:1};
+  srt={m:{col:'year',dir:1},fp:{col:'year',dir:1},card:{col:'year',dir:1}};
+  // 업로드 카드 초기화
+  $('userCard').classList.remove('loaded');$('uIcon').textContent='📋';
+  $('uSub').style.display='';$('uOk').style.display='none';$('uOk').textContent='';
+  $('userInp').value='';$('logInp').value='';
+  // 칩·버튼
+  $('fileChips').innerHTML='';$('resetBtn').style.display='none';
+  // 헤더 상태
+  $('sdot').className='hdr-sdot';$('stext').textContent='파일을 업로드하세요';
+  // 배너·카드·탭 숨김
+  $('statBanner').style.display='none';
+  $('mainCards').style.display='none';
+  $('tabNav').style.display='none';
+  $('emptyState').style.display='block';
+  // 섹션 모두 숨김
+  ['monthly','fp','card','reader','inactive','unreg'].forEach(s=>$('sec-'+s).style.display='none');
+  // 배지
+  $('inactiveBadge').style.display='none';$('unregBadge').style.display='none';
+  // 탭 활성화 초기화
+  document.querySelectorAll('.tn').forEach(n=>n.classList.remove('active'));
+  $('tn-monthly').classList.add('active'); curSec='monthly'; curTab='all';
+  // 차트 제거
+  Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};
+}
+
+// ═══════════════════════════════════════
+// 집계
+// ═══════════════════════════════════════
+function aggregateMonthly(method){
+  const map={};
+  const src=method?logs.filter(l=>l.method===method):logs;
+  for(const l of src){
+    const k=`${l.year}|${l.month}|${l.empId}|${l.method}`;
+    if(!map[k])map[k]={year:l.year,month:l.month,empId:l.empId,name:getName(l.empId,l.name),method:l.method,해제:0,경계:0,출입:0,실패:0};
+    if(l.status==='성공'){if(l.mode==='해제')map[k].해제++;else if(l.mode==='경계')map[k].경계++;else map[k].출입++;}
+    else map[k].실패++;
+  }
+  const arr=Object.values(map);arr.forEach(r=>r.total=r.해제+r.경계+r.출입);return arr;
+}
+
+function getInactive(){
+  if(!logs.length)return[];
+  const maxDt=logs.reduce((mx,l)=>l.dt>mx?l.dt:mx,new Date(0));
+  const cutoff=new Date(maxDt);cutoff.setDate(cutoff.getDate()-90);
+  const la={},ta={};
+  for(const l of logs){if(!la[l.empId]||l.dt>la[l.empId])la[l.empId]=l.dt;ta[l.empId]=(ta[l.empId]||0)+1;}
+  const allIds=new Set([...Object.keys(users),...logs.map(l=>l.empId).filter(Boolean)]);
+  const res=[];
+  for(const id of allIds){
+    if(!id||id==='[알수없음]')continue;
+    const last=la[id];
+    if(!last||last<cutoff){
+      const days=last?Math.floor((maxDt-last)/864e5):null;
+      res.push({empId:id,name:getName(id,''),lastDate:last?last.toISOString().split('T')[0]:'기록없음',daysSince:days,total:ta[id]||0});
+    }
+  }
+  res.sort((a,b)=>(b.daysSince??9999)-(a.daysSince??9999));
+  const maxDtStr=maxDt.toISOString().split('T')[0];
+  const q=Math.ceil((maxDt.getMonth()+1)/3);
+  $('inaBase').textContent=maxDtStr;$('inaQ').textContent=`${maxDt.getFullYear()}년 ${q}분기`;
+  $('inaCount').textContent=res.length+'명';
+  return res;
+}
+
+// ═══════════════════════════════════════
+// 전체 새로고침
+// ═══════════════════════════════════════
+function refresh(){
+  if(!logs.length)return;
+  $('emptyState').style.display='none';
+  $('statBanner').style.display='';
+  $('mainCards').style.display='grid';
+  $('tabNav').style.display='flex';
+
+  $('sdot').className='hdr-sdot on';
+  $('stext').textContent=`총 ${logs.length.toLocaleString()}건 로드됨`;
+
+  // 년도 옵션 업데이트
+  const years=[...new Set(logs.map(l=>l.year))].sort();
+  ['mYear','fpYear','cardYear'].forEach(id=>{
+    const el=$(id);if(!el)return;const cv=el.value;
+    el.innerHTML='<option value="">전체</option>'+years.map(y=>`<option value="${y}"${y==cv?' selected':''}>${y}년</option>`).join('');
+  });
+
+  // 리더기 옵션
+  const rdrs=[...new Set(logs.map(l=>l.reader).filter(Boolean))].sort();
+  const rf=$('rdFilter');if(rf){
+    const cv=rf.value;
+    rf.innerHTML='<option value="">전체</option>'+rdrs.map(r=>`<option value="${r}"${r===cv?' selected':''}>${r}</option>`).join('');
+  }
+
+  renderBanner();
+  renderSec();
+}
+
+function renderBanner(){
+  const tot=logs.length;
+  const fpN=logs.filter(l=>l.method==='FP').length;
+  const rfN=logs.filter(l=>l.method==='RF').length;
+  const suc=logs.filter(l=>l.status==='성공').length;
+  const uCnt=Object.keys(users).length;
+
+  // 매칭 인원
+  const logIds=new Set(logs.map(l=>l.empId).filter(Boolean));
+  const matched=[...logIds].filter(id=>users[id]).length;
+
+  // 관리 대상
+  const ina=getInactive();
+  const bd=$('inactiveBadge');
+  bd.textContent=ina.length;bd.style.display=ina.length?'':'none';
+
+  // 미등록 ID 목록 (사용자 명부에 없는 것)
+  const unregIds=[...logIds].filter(id=>!users[id]&&id!=='[알수없음]');
+  const unregCnt=unregIds.length;
+
+  // 미등록 배지
+  const ub=$('unregBadge');ub.textContent=unregCnt;ub.style.display=unregCnt?'':'none';
+
+  // 배너 chips
+  $('bannerChips').innerHTML=`
+    <div class="b-chip green">✅ 명부 인식: ${uCnt}명 (ID기준)</div>
+    <div class="b-chip blue">✅ 총 ${tot.toLocaleString()}건 분석 완료</div>`;
+
+  // Cards
+  $('mainCards').innerHTML=`
+    <div class="kard k-blue"><div class="klbl">명부 인증번호 수</div><div class="kval">${uCnt}</div></div>
+    <div class="kard k-blue"><div class="klbl">로그 매칭 인원</div><div class="kval">${matched}</div></div>
+    <div class="kard k-red"><div class="klbl">관리 대상 사용자</div><div class="kval">${ina.length}</div></div>
+    <div class="kard k-orange"><div class="klbl">미등록 사용자 기록</div><div class="kval">${unregCnt}</div></div>`;
+}
+
+// ═══════════════════════════════════════
+// 내비게이션
+// ═══════════════════════════════════════
+function showSec(name,el){
+  curSec=name;
+  document.querySelectorAll('.tn').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  ['monthly','fp','card','reader','inactive','unreg'].forEach(s=>{
+    $(('sec-'+s)).style.display=s===name?'block':'none';
+  });
+  renderSec();
+}
+
+function switchTab(tab,el){
+  curTab=tab;
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  pg.m=1;renderMonthly();
+}
+
+function renderSec(){
+  if(!logs.length)return;
+  if(curSec==='monthly'){renderSideChart();renderMonthly();}
+  else if(curSec==='fp')renderFP();
+  else if(curSec==='card')renderCard();
+  else if(curSec==='reader'){renderReaderCharts();renderRdTbl();}
+  else if(curSec==='inactive')renderInactive();
+  else if(curSec==='unreg')renderUnreg();
+}
+
+// ═══════════════════════════════════════
+// 사이드 차트 (월별 탭 왼쪽)
+// ═══════════════════════════════════════
+// 리더기 인덱스 → 고유 색상
+function rdColor(i,n){return `hsl(${Math.round(i*360/Math.max(n,1))},65%,52%)`;}
+
+// 수평 바 차트용 수치 표시 인라인 플러그인
+const hBarLabelPlugin={
+  id:'hBarLabel',
+  afterDatasetsDraw(chart){
+    const {ctx}=chart;
+    chart.data.datasets.forEach((_,di)=>{
+      const meta=chart.getDatasetMeta(di);
+      if(meta.hidden)return;
+      meta.data.forEach((bar,j)=>{
+        const v=chart.data.datasets[di].data[j];
+        if(!v)return;
+        ctx.save();
+        ctx.fillStyle='#334155';
+        ctx.font='bold 11px "Malgun Gothic",Arial';
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(v.toLocaleString(), bar.x+5, bar.y);
+        ctx.restore();
+      });
+    });
+  }
+};
+
+function renderSideChart(){
+  const rdTot={};
+  for(const l of logs){if(!l.reader)continue;rdTot[l.reader]=(rdTot[l.reader]||0)+1;}
+  const top=Object.entries(rdTot).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const colors=top.map((_,i)=>rdColor(i,top.length));
+  if(charts.side){try{charts.side.destroy();}catch(e){}}
+  charts.side=new Chart($('sideChart'),{
+    type:'bar',
+    plugins:[hBarLabelPlugin],
+    data:{
+      labels:top.map(r=>r[0].length>14?r[0].slice(0,14)+'…':r[0]),
+      datasets:[{
+        data:top.map(r=>r[1]),
+        backgroundColor:colors,
+        borderRadius:5,
+        barThickness:18,
+      }]
+    },
+    options:{
+      responsive:true,indexAxis:'y',
+      layout:{padding:{right:52}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`총 ${ctx.raw.toLocaleString()}건`}}},
+      scales:{
+        x:{grid:{color:'#f1f5f9'},ticks:{display:false},border:{display:false}},
+        y:{ticks:{font:{size:10},color:'#475569'}}
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════
+// 정렬
+// ═══════════════════════════════════════
+function sortBy(key,col){
+  const s=srt[key];s.col===col?s.dir*=-1:(s.col=col,s.dir=1);
+  if(key==='m'){pg.m=1;renderMonthly();}
+  else if(key==='fp'){pg.fp=1;renderFP();}
+  else{pg.card=1;renderCard();}
+}
+function applySort(data,key){
+  const {col,dir}=srt[key];
+  return data.slice().sort((a,b)=>{
+    let va=a[col]??'',vb=b[col]??'';
+    if(col==='year')va=a.year*100+a.month,vb=b.year*100+b.month;
+    return typeof va==='string'?dir*va.localeCompare(vb,'ko'):dir*(va-vb);
+  });
+}
+
+// ═══════════════════════════════════════
+// 월별 테이블
+// ═══════════════════════════════════════
+function renderMonthly(){
+  const yr=$('mYear').value,mo=$('mMonth').value,q=$('mSearch').value.toLowerCase();
+  const meth=curTab==='fp'?'FP':curTab==='rf'?'RF':null;
+  let data=aggregateMonthly(meth);
+  if(yr)data=data.filter(r=>r.year==yr);
+  if(mo)data=data.filter(r=>r.month==mo);
+  if(q)data=data.filter(r=>r.empId.toLowerCase().includes(q)||r.name.toLowerCase().includes(q));
+  data=applySort(data,'m');
+  const total=data.length,slice=data.slice((pg.m-1)*PAGE,pg.m*PAGE);
+  $('mBody').innerHTML=slice.length?slice.map(r=>{
+    const badge=r.method==='FP'?'<span class="badge-fp">FP</span>':'<span class="badge-rf">RF</span>';
+    const note=r.실패>0?`<span style="color:var(--red)">실패 ${r.실패}건</span>`:'';
+    return `<tr><td>${r.year}</td><td>${r.month}월</td><td>${r.empId}</td>
+      <td style="text-align:left">${r.name}</td>
+      <td>${r.해제||'-'}</td><td>${r.경계||'-'}</td><td>${r.출입||'-'}</td>
+      <td><strong>${r.total}</strong></td><td>${badge}</td><td>${note}</td></tr>`;
+  }).join(''):'<tr><td colspan="10" class="no-data">데이터가 없습니다</td></tr>';
+  renderPg('mPg','m',total);
+}
+
+// FP
+function renderFP(){
+  const yr=$('fpYear').value,mo=$('fpMonth').value,q=$('fpSearch').value.toLowerCase();
+  let data=aggregateMonthly('FP');
+  if(yr)data=data.filter(r=>r.year==yr);
+  if(mo)data=data.filter(r=>r.month==mo);
+  if(q)data=data.filter(r=>r.empId.toLowerCase().includes(q)||r.name.toLowerCase().includes(q));
+  data=applySort(data,'fp');
+  const total=data.length,slice=data.slice((pg.fp-1)*PAGE,pg.fp*PAGE);
+  $('fpBody').innerHTML=slice.length?slice.map(r=>`<tr>
+    <td>${r.year}</td><td>${r.month}월</td><td>${r.empId}</td>
+    <td style="text-align:left">${r.name}</td>
+    <td>${r.해제||'-'}</td><td>${r.경계||'-'}</td><td>${r.출입||'-'}</td>
+    <td><strong>${r.total}</strong></td>
+    <td style="color:var(--red)">${r.실패>0?`실패 ${r.실패}건`:''}</td>
+  </tr>`).join(''):'<tr><td colspan="9" class="no-data">데이터가 없습니다</td></tr>';
+  renderPg('fpPg','fp',total);
+}
+
+// 카드
+function renderCard(){
+  const yr=$('cardYear').value,mo=$('cardMonth').value,q=$('cardSearch').value.toLowerCase();
+  let data=aggregateMonthly('RF');
+  if(yr)data=data.filter(r=>r.year==yr);
+  if(mo)data=data.filter(r=>r.month==mo);
+  if(q)data=data.filter(r=>r.empId.toLowerCase().includes(q)||r.name.toLowerCase().includes(q));
+  data=applySort(data,'card');
+  const total=data.length,slice=data.slice((pg.card-1)*PAGE,pg.card*PAGE);
+  $('cardBody').innerHTML=slice.length?slice.map(r=>`<tr>
+    <td>${r.year}</td><td>${r.month}월</td><td>${r.empId}</td>
+    <td style="text-align:left">${r.name}</td>
+    <td>${r.해제||'-'}</td><td>${r.경계||'-'}</td><td>${r.출입||'-'}</td>
+    <td><strong>${r.total}</strong></td>
+    <td style="color:var(--red)">${r.실패>0?`실패 ${r.실패}건`:''}</td>
+  </tr>`).join(''):'<tr><td colspan="9" class="no-data">데이터가 없습니다</td></tr>';
+  renderPg('cardPg','card',total);
+}
+
+// ═══════════════════════════════════════
+// 페이지네이션
+// ═══════════════════════════════════════
+function renderPg(elId,key,total){
+  const el=$(elId);const tp=Math.ceil(total/PAGE);const cur=pg[key];
+  if(tp<=1){el.innerHTML=`<span class="pg-info">총 ${total.toLocaleString()}건</span>`;return;}
+  let h='';
+  if(cur>1)h+=`<div class="pgb" onclick="goPage('${key}',${cur-1})">‹</div>`;
+  const st=Math.max(1,cur-3),en=Math.min(tp,st+6);
+  if(st>1){h+=`<div class="pgb" onclick="goPage('${key}',1)">1</div>`;if(st>2)h+='<div class="pgb" style="pointer-events:none">…</div>';}
+  for(let p=st;p<=en;p++)h+=`<div class="pgb${p===cur?' active':''}" onclick="goPage('${key}',${p})">${p}</div>`;
+  if(en<tp){if(en<tp-1)h+='<div class="pgb" style="pointer-events:none">…</div>';h+=`<div class="pgb" onclick="goPage('${key}',${tp})">${tp}</div>`;}
+  if(cur<tp)h+=`<div class="pgb" onclick="goPage('${key}',${cur+1})">›</div>`;
+  h+=`<span class="pg-info">${total.toLocaleString()}건 / ${tp}페이지</span>`;
+  el.innerHTML=h;
+}
+function goPage(key,p){pg[key]=p;if(key==='m')renderMonthly();else if(key==='fp')renderFP();else renderCard();}
+
+// ═══════════════════════════════════════
+// 리더기 통계 차트
+// ═══════════════════════════════════════
+function renderReaderCharts(){
+  const rdTot={},rdFP={},rdRF={},uTot={},mMap={};
+  for(const l of logs){
+    if(l.reader){rdTot[l.reader]=(rdTot[l.reader]||0)+1;
+      if(l.method==='FP')rdFP[l.reader]=(rdFP[l.reader]||0)+1;else rdRF[l.reader]=(rdRF[l.reader]||0)+1;}
+    if(l.empId)uTot[l.empId]=(uTot[l.empId]||0)+1;
+    const mk=`${l.year}-${String(l.month).padStart(2,'0')}`;
+    if(!mMap[mk])mMap[mk]={FP:0,RF:0};mMap[mk][l.method]=(mMap[mk][l.method]||0)+1;
+  }
+  const t10rd=Object.entries(rdTot).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const t10us=Object.entries(uTot).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const months=Object.keys(mMap).sort();
+  const fpTot=logs.filter(l=>l.method==='FP').length;
+  const rfTot=logs.filter(l=>l.method==='RF').length;
+  const otTot=logs.filter(l=>l.method!=='FP'&&l.method!=='RF').length;
+
+  $('readerCharts').innerHTML=`
+    <div class="cbox"><h3>📍 리더기별 인증 횟수 (TOP 10)</h3><canvas id="ch1"></canvas></div>
+    <div class="cbox"><h3>👤 사용자별 인증 횟수 (TOP 10)</h3><canvas id="ch2"></canvas></div>
+    <div class="cbox"><h3>📊 인증 방법 비율</h3><canvas id="ch3"></canvas></div>
+    <div class="cbox"><h3>📈 월별 인증 추이</h3><canvas id="ch4"></canvas></div>`;
+
+  Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};
+
+  const rdColors=t10rd.map((_,i)=>rdColor(i,t10rd.length));
+  // 수직 바용 수치 플러그인
+  const vBarLabel={id:'vBarLabel',afterDatasetsDraw(chart){
+    const {ctx}=chart;
+    chart.data.datasets.forEach((_,di)=>{
+      const meta=chart.getDatasetMeta(di);if(meta.hidden)return;
+      meta.data.forEach((bar,j)=>{
+        const v=chart.data.datasets[di].data[j];if(!v)return;
+        ctx.save();ctx.fillStyle='#334155';ctx.font='bold 10px "Malgun Gothic",Arial';
+        ctx.textAlign='center';ctx.textBaseline='bottom';
+        ctx.fillText(v.toLocaleString(),bar.x,bar.y-2);ctx.restore();
+      });
+    });
+  }};
+  charts.c1=new Chart($('ch1'),{
+    type:'bar',plugins:[vBarLabel],
+    data:{
+      labels:t10rd.map(r=>r[0].length>15?r[0].slice(0,15)+'…':r[0]),
+      datasets:[{
+        label:'합계',
+        data:t10rd.map(r=>r[1]),
+        backgroundColor:rdColors,
+        borderRadius:5,
+      }]
+    },
+    options:{
+      responsive:true,
+      layout:{padding:{top:20}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        label:ctx=>{
+          const rdr=t10rd[ctx.dataIndex][0];
+          return [`FP: ${rdFP[rdr]||0}건`,`RF: ${rdRF[rdr]||0}건`,`합계: ${ctx.raw.toLocaleString()}건`];
+        }
+      }}},
+      scales:{y:{grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},x:{ticks:{font:{size:9}}}}
+    }
+  });
+
+  charts.c2=new Chart($('ch2'),{type:'bar',data:{
+    labels:t10us.map(u=>{const n=getName(u[0],'');return n!=='[미등록]'?`${u[0]}(${n})`:u[0];}),
+    datasets:[{label:'총 인증',data:t10us.map(u=>u[1]),backgroundColor:t10us.map((_,i)=>`hsl(${i*36},65%,58%)`),borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#f1f5f9'}}}}});
+
+  charts.c3=new Chart($('ch3'),{type:'doughnut',data:{
+    labels:['지문(FP)','카드(RF)','기타'],
+    datasets:[{data:[fpTot,rfTot,otTot],backgroundColor:['#3b82f6','#22c55e','#f97316'],borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,plugins:{legend:{position:'bottom'}},cutout:'60%'}});
+
+  charts.c4=new Chart($('ch4'),{type:'line',data:{
+    labels:months,
+    datasets:[
+      {label:'FP',data:months.map(m=>mMap[m].FP||0),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.1)',fill:true,tension:.35,pointRadius:3},
+      {label:'RF',data:months.map(m=>mMap[m].RF||0),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.1)',fill:true,tension:.35,pointRadius:3}]},
+    options:{responsive:true,plugins:{legend:{position:'top'}},scales:{y:{grid:{color:'#f1f5f9'}}}}});
+}
+
+// ═══════════════════════════════════════
+// 리더기 테이블
+// ═══════════════════════════════════════
+function renderRdTbl(){
+  const rf=$('rdFilter').value,rm=$('rdMethod').value,rs=$('rdSearch').value.toLowerCase();
+  const map={};
+  for(const l of logs){
+    if(rf&&l.reader!==rf)continue;if(rm&&l.method!==rm)continue;
+    const name=getName(l.empId,l.name);
+    if(rs&&!l.empId.toLowerCase().includes(rs)&&!name.toLowerCase().includes(rs))continue;
+    const k=`${l.reader}||${l.empId}||${l.method}`;
+    if(!map[k])map[k]={reader:l.reader,empId:l.empId,name,method:l.method,해제:0,경계:0,출입:0};
+    if(l.status==='성공'){if(l.mode==='해제')map[k].해제++;else if(l.mode==='경계')map[k].경계++;else map[k].출입++;}
+  }
+  const data=Object.values(map).sort((a,b)=>(b.해제+b.경계+b.출입)-(a.해제+a.경계+a.출입));
+  $('rdBody').innerHTML=data.length?data.map(r=>{
+    const tot=r.해제+r.경계+r.출입;
+    const badge=r.method==='FP'?'<span class="badge-fp">FP</span>':'<span class="badge-rf">RF</span>';
+    return `<tr><td style="text-align:left">${r.reader}</td><td>${r.empId}</td>
+      <td style="text-align:left">${r.name}</td>
+      <td>${r.해제||'-'}</td><td>${r.경계||'-'}</td><td>${r.출입||'-'}</td>
+      <td><strong>${tot}</strong></td><td>${badge}</td></tr>`;
+  }).join(''):'<tr><td colspan="8" class="no-data">데이터가 없습니다</td></tr>';
+}
+
+// ═══════════════════════════════════════
+// 관리 대상 사용자
+// ═══════════════════════════════════════
+function renderInactive(){
+  const data=getInactive();
+  $('inaBody').innerHTML=data.length?data.map(m=>`
+    <tr class="ina-row">
+      <td>${m.empId}</td><td style="text-align:left">${m.name}</td>
+      <td>${m.lastDate}</td>
+      <td>${m.daysSince!==null?m.daysSince+'일':'기록없음'}</td>
+      <td>${m.total}</td>
+      <td><span class="del-badge">관리대상</span></td>
+      <td style="color:var(--red);font-size:11px">${m.total===0?'출입기록 전혀 없음':'90일 이상 미출입'}</td>
+    </tr>`).join(''):'<tr><td colspan="7" class="no-data">관리 대상 회원이 없습니다 ✓</td></tr>';
+}
+
+// ═══════════════════════════════════════
+// 미등록 사용자 기록
+// ═══════════════════════════════════════
+let unregSortState={col:'count',dir:-1};
+
+function unregSortBy(col){
+  if(unregSortState.col===col)unregSortState.dir*=-1;
+  else{unregSortState.col=col;unregSortState.dir=col==='id'?1:-1;}
+  renderUnreg();
+}
+
+function renderUnreg(){
+  const modeF=$('unregModeFilter').value;
+
+  // 사용자 명부에 없는 ID 추출
+  const logIds=new Set(logs.map(l=>l.empId).filter(id=>id&&id!=='[알수없음]'));
+  const unregSet=[...logIds].filter(id=>!users[id]);
+
+  // ID별 집계
+  const map={};
+  for(const l of logs){
+    const id=l.empId;
+    if(!id||id==='[알수없음]'||users[id])continue;
+    if(modeF&&l.mode!==modeF)continue;
+    if(!map[id])map[id]={id,count:0,lastDt:null,lastDate:'',lastMode:'',methods:new Set(),readers:{}};
+    map[id].count++;
+    if(!map[id].lastDt||l.dt>map[id].lastDt){
+      map[id].lastDt=l.dt;
+      map[id].lastDate=l.dateStr;
+      map[id].lastMode=l.mode;
+    }
+    map[id].methods.add(l.method);
+    if(l.reader)map[id].readers[l.reader]=(map[id].readers[l.reader]||0)+1;
+  }
+
+  let data=Object.values(map);
+
+  // 정렬
+  const {col,dir}=unregSortState;
+  data.sort((a,b)=>{
+    if(col==='id') return dir*a.id.localeCompare(b.id,'ko');
+    if(col==='count') return dir*(a.count-b.count);
+    if(col==='last') return dir*(new Date(a.lastDate)-new Date(b.lastDate));
+    return 0;
+  });
+
+  // 카운트 업데이트
+  const total=data.reduce((s,r)=>s+r.count,0);
+  $('unregCount').textContent=data.length+'개';
+  $('unregTotal').textContent=total.toLocaleString()+'건';
+
+  $('unregBody').innerHTML=data.length?data.map(r=>{
+    // 위험도: 주장치(보안 제어반)에서 해제·경계 모드 기록이 있으면 UNAUTHORIZED (보안 시스템 직접 조작),
+    //        일반 도어 리더기 출입 기록만 있으면 WARNING (타인 해제 후 동반 진입 또는 비경계 시 통과 추정)
+    const hasAlert=logs.some(l=>l.empId===r.id&&(l.mode==='해제'||l.mode==='경계'));
+    const risk=hasAlert
+      ?'<span class="unauth">UNAUTHORIZED</span>'
+      :'<span class="warn-badge">WARNING</span>';
+    // 주요 리더기 (가장 많이 사용)
+    const topReader=Object.entries(r.readers).sort((a,b)=>b[1]-a[1])[0];
+    const readerTxt=topReader?`${topReader[0].length>12?topReader[0].slice(0,12)+'…':topReader[0]} (${topReader[1]}회)`:'';
+    // 방법 배지
+    const mBadges=[...r.methods].map(m=>m==='FP'?'<span class="badge-fp">FP</span>':'<span class="badge-rf">RF</span>').join(' ');
+    return `<tr class="unreg-row">
+      <td style="color:var(--orange);font-weight:700">${r.id}</td>
+      <td><strong>${r.count}</strong></td>
+      <td>${r.lastDate}</td>
+      <td>${r.lastMode}</td>
+      <td style="text-align:left;font-size:11px">${readerTxt}</td>
+      <td>${mBadges}</td>
+      <td>${risk}</td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="7" class="no-data">미등록 사용자 기록이 없습니다 ✓</td></tr>';
+}
+
+function exportUnregLogs(){
+  // 미등록 ID의 전체 원본 로그 내보내기
+  const unregIds=new Set(
+    [...new Set(logs.map(l=>l.empId).filter(id=>id&&id!=='[알수없음]'))].filter(id=>!users[id])
+  );
+  const rows=logs.filter(l=>unregIds.has(l.empId)).map(l=>({
+    인증일시:l.dateStr, 사원번호:l.empId, 리더기장소:l.reader,
+    인증모드:l.mode, 인증상태:l.status, 인증방법:l.method
+  }));
+  if(!rows.length){alert('내보낼 기록이 없습니다.');return;}
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'미등록출입기록');
+  XLSX.writeFile(wb,`미등록사용자_출입기록_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+// ═══════════════════════════════════════
+// 엑셀 내보내기
+// ═══════════════════════════════════════
+function exportTbl(id,name){
+  const tbl=$(id);const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.table_to_sheet(tbl);XLSX.utils.book_append_sheet(wb,ws,'데이터');
+  XLSX.writeFile(wb,`${name}_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+function exportCurrent(){
+  const m={monthly:'mTbl',fp:'fpTbl',card:'cardTbl',reader:'rdTbl',inactive:'inaTbl',unreg:'unregTbl'};
+  const n={monthly:'월별현황',fp:'FP분석',card:'RF분석',reader:'리더기통계',inactive:'관리대상',unreg:'미등록사용자'};
+  if(m[curSec])exportTbl(m[curSec],n[curSec]);
+}
+
+// ═══════════════════════════════════════
+// 초기화
+// ═══════════════════════════════════════
+['fp','card','reader','inactive','unreg'].forEach(s=>$('sec-'+s).style.display='none');
+$('sec-monthly').style.display='none';
+</script>
+</body>
+</html>
