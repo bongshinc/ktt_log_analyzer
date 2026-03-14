@@ -43,7 +43,7 @@ SheetJS Community Edition(CE)은 [Apache 2.0](https://www.apache.org/licenses/LI
 
 ```
 다운로드 URL:
-https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js
+https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js | [다운로드](https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js)
 ```
 
 브라우저 주소창에 위 URL을 입력한 뒤 **파일로 저장** (`Ctrl+S` / `Cmd+S`) 하여
@@ -58,7 +58,7 @@ Chart.js는 [MIT](https://github.com/chartjs/Chart.js/blob/master/LICENSE.md) �
 
 ```
 다운로드 URL:
-https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js
+https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js | [다운로드](https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js) 
 ```
 
 브라우저 주소창에 위 URL을 입력한 뒤 **파일로 저장** (`Ctrl+S` / `Cmd+S`) 하여
